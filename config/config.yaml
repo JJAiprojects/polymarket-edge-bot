@@ -1,0 +1,71 @@
+# Polymarket Edge Detection Bot Configuration
+
+# Polling Configuration
+poll_interval_minutes: 15
+
+# Volume Spike Detection
+volume_spike_multiplier: 4.0
+volume_spike_time_window_hours: 4
+niche_liquidity_threshold_usd: 50000
+
+# Probability Divergence
+divergence_threshold_pct: 12.0
+
+# Smart Wallet Tracking
+wallet_age_hours: 24
+wallet_success_rate_threshold: 0.70
+wallet_min_trades_to_qualify: 10
+min_trade_size_usd: 1000
+
+# Position Sizing (Kelly Criterion)
+kelly_fraction: 0.5
+max_exposure_pct: 40
+bankroll_size_usd: 10000
+correlation_reduction_factor: 0.5
+
+# Market Selection
+min_liquidity_usd: 0  # Temporarily lowered for testing (set back to 5000 for production)
+max_niche_liquidity_usd: 100000
+min_days_to_resolution: 30
+avoid_coin_flip_range: 0.05  # Skip if prob between 45-55% without thesis
+
+# Correlation Analysis
+correlation_threshold: 0.7
+correlation_movement_delta_pct: 5.0
+correlation_window_days: 7
+
+# Risk Management
+hedge_threshold: 0.70
+max_hedge_size_pct: 20
+stop_loss_prob_drop_pct: 20
+max_open_positions: 10
+
+# Twitter Integration
+twitter_min_mentions: 15
+twitter_time_window_hours: 1
+twitter_enabled: true
+
+# Notification Thresholds
+notification_threshold_ev: 0.05  # Minimum expected value to flag
+telegram_enabled: true
+discord_enabled: false
+
+# API Rate Limits (requests per minute)
+polymarket_rate_limit: 60
+twitter_rate_limit: 15
+polygonscan_rate_limit: 5
+
+# Data Storage
+database_path: "data/bot_data.db"
+log_level: "INFO"  # DEBUG, INFO, WARNING, ERROR
+
+# Market Categories to Monitor
+monitor_categories:
+  - "politics"
+  - "crypto"
+  - "sports"
+  - "entertainment"
+
+# Arbitrage Detection
+arbitrage_threshold_pct: 5.0
+arbitrage_enabled: false  # Enable when Kalshi/PredictIt APIs are integrated
