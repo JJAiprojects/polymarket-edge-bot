@@ -1,7 +1,7 @@
 """Main bot orchestrator."""
 import time
 import schedule
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import List, Dict, Any, Optional
 import logging
 
@@ -59,6 +59,10 @@ class PolymarketBot:
         self.position_sizer = PositionSizer(config_dict)
         self.risk_manager = RiskManager(config_dict, self.db)
         self.correlation_analyzer = CorrelationAnalyzer(self.db)
+        
+        # Initialize fresh wallet detector
+        from src.analysis.fresh_wallet_detector import FreshWalletDetector
+        self.fresh_wallet_detector = FreshWalletDetector(config_dict, self.db, self.blockchain)
         
         # Initialize notifications
         self.notifiers = []
@@ -137,7 +141,28 @@ class PolymarketBot:
                 })
             
             # 2. Get recent trades
-            trades = self.polymarket.get_trades(market_id=market_id, limit=50)
+            trades = self.polymarket.get_trades(market_id=market_id, limit=100)  # Increased for fresh wallet detection
+            
+            # Store trades in database for tracking
+            for trade in trades:
+                try:
+                    trade_timestamp = trade.get('timestamp')
+                    if isinstance(trade_timestamp, str):
+                        from dateutil import parser
+                        trade_timestamp = parser.parse(trade_timestamp)
+                    elif trade_timestamp is None:
+                        trade_timestamp = datetime.now(timezone.utc)
+                    
+                    self.db.add_trade({
+                        'market_id': market_id,
+                        'trader_address': trade.get('trader_address', ''),
+                        'side': trade.get('side', 'buy'),
+                        'size': float(trade.get('size', 0)),
+                        'price': float(trade.get('price', 0)),
+                        'timestamp': trade_timestamp
+                    })
+                except Exception as e:
+                    self.logger.debug(f"Error storing trade: {e}")
             
             # Check for unusual trade sizes
             unusual_trades = self.edge_detector.detect_unusual_trade_size(
@@ -152,6 +177,20 @@ class PolymarketBot:
                     'current_probability': main_prob,
                     'metadata': unusual_trades
                 })
+            
+            # 2b. Check for fresh wallet large bets (NEW)
+            if self.config.get('fresh_wallet_enabled', True):
+                fresh_wallet_signal = self.fresh_wallet_detector.detect_fresh_wallet_large_bet(
+                    market_id, trades
+                )
+                if fresh_wallet_signal:
+                    opportunities.append({
+                        'market_id': market_id,
+                        'market_question': question,
+                        'signal_type': 'fresh_wallet_large_bet',
+                        'current_probability': main_prob,
+                        'metadata': fresh_wallet_signal
+                    })
             
             # 3. Check probability divergence with external sources
             if self.config.get('twitter_enabled', False):
@@ -301,6 +340,19 @@ class PolymarketBot:
             keyword = metadata.get('keyword', '')
             rationale += f"Twitter activity spike: {mentions} mentions of '{keyword}'.\n"
         
+        elif opp['signal_type'] == 'fresh_wallet_large_bet':
+            wallet = metadata.get('wallet_address', 'Unknown')
+            bet_size = metadata.get('bet_size_usd', 0)
+            wallet_age = metadata.get('wallet_age_hours', 0)
+            allocation = metadata.get('allocation_pct', 0)
+            total_trades = metadata.get('total_trades', 0)
+            rationale += f"FRESH WALLET LARGE BET DETECTED!\n"
+            rationale += f"Wallet: {wallet[:10]}...{wallet[-6:]} (age: {wallet_age:.1f} hours)\n"
+            rationale += f"Bet size: ${bet_size:,.2f}\n"
+            rationale += f"Total trades: {total_trades} (single-market focus)\n"
+            rationale += f"Allocation: {allocation:.1f}% to this market\n"
+            rationale += f"This pattern suggests insider activity or early information.\n"
+        
         rationale += f"Edge: {sizing['edge_pct']:.2f}%. "
         rationale += f"Expected Value: ${ev:.2f}. "
         rationale += f"Suggested position: ${sizing['adjusted_size']:.2f} ({sizing['bankroll_pct']:.1f}% of bankroll)."
@@ -362,8 +414,8 @@ class PolymarketBot:
         
         self.logger.info("Analysis cycle complete")
     
-    def run(self, run_once: bool = False) -> None:
-        """Run the bot (continuously or once).
+    def run(self, run_once: bool = True) -> None:
+        """Run the bot (once by default, or continuously with --continuous flag).
         
         Args:
             run_once: If True, run once and exit. If False, run on schedule.
@@ -391,14 +443,19 @@ class PolymarketBot:
 
 
 def main():
-    """Main entry point."""
+    """Main entry point.
+    
+    By default, runs once and exits (for cron jobs and testing).
+    Use --continuous or --loop to run in continuous mode.
+    """
     import sys
     
-    run_once = '--once' in sys.argv or '-o' in sys.argv
+    # Default to run_once=True, only loop if explicitly requested
+    run_continuous = '--continuous' in sys.argv or '--loop' in sys.argv or '-c' in sys.argv
     
     try:
         bot = PolymarketBot()
-        bot.run(run_once=run_once)
+        bot.run(run_once=not run_continuous)
     except Exception as e:
         print(f"Fatal error: {e}")
         sys.exit(1)

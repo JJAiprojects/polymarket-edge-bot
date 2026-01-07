@@ -69,3 +69,10 @@ monitor_categories:
 # Arbitrage Detection
 arbitrage_threshold_pct: 5.0
 arbitrage_enabled: false  # Enable when Kalshi/PredictIt APIs are integrated
+
+# Fresh Wallet Large Bet Detection (Insider Signals)
+fresh_wallet_age_hours: 72  # 48-72 hours for "fresh" wallets
+min_fresh_wallet_bet_usd: 5000  # $5k-$10k minimum bet size
+fresh_wallet_max_trades: 3  # <3 total trades (single-market focus)
+fresh_wallet_min_allocation_pct: 80.0  # >80% allocation to one outcome
+fresh_wallet_enabled: true

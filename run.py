@@ -1,5 +1,10 @@
 #!/usr/bin/env python
-"""Simple entry point for running the bot."""
+"""Simple entry point for running the bot.
+
+Usage:
+    python run.py              # Run once and exit (default - for cron/testing)
+    python run.py --continuous # Run continuously (scans every 15 minutes)
+"""
 import sys
 import os
 

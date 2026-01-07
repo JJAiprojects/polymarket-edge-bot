@@ -88,14 +88,41 @@ class TelegramNotifier:
         suggested_size = opportunity.get('suggested_size_usd', 0.0)
         rationale = opportunity.get('rationale', 'No rationale provided')
         
-        message = f"🚨 <b>Flagged Opportunity</b>\n\n"
-        message += f"<b>Market:</b> {market_question}\n"
-        message += f"<b>Signal:</b> {signal_type.replace('_', ' ').title()}\n"
-        message += f"<b>Current Probability:</b> {current_prob:.1%}\n"
-        message += f"<b>Expected Value:</b> ${ev:.2f}\n"
-        message += f"<b>Suggested Size:</b> ${suggested_size:.2f}\n\n"
-        message += f"<b>Rationale:</b>\n{rationale}\n\n"
-        message += f"<a href='https://polymarket.com/event/{market_id}'>View on Polymarket</a>"
+        # Special formatting for fresh wallet signals
+        if signal_type == 'fresh_wallet_large_bet':
+            metadata = opportunity.get('metadata', {})
+            wallet = metadata.get('wallet_address', 'Unknown')
+            bet_size = metadata.get('bet_size_usd', 0)
+            wallet_age = metadata.get('wallet_age_hours', 0)
+            allocation = metadata.get('allocation_pct', 0)
+            total_trades = metadata.get('total_trades', 0)
+            
+            message = f"🚨 <b>FRESH WALLET LARGE BET DETECTED!</b>\n\n"
+            message += f"<b>Market:</b> {market_question}\n"
+            message += f"<b>Signal Type:</b> Fresh Wallet Large Bet (Insider Pattern)\n\n"
+            message += f"<b>⚠️ Key Details:</b>\n"
+            message += f"• Wallet: <code>{wallet[:10]}...{wallet[-6:]}</code>\n"
+            message += f"• Wallet Age: {wallet_age:.1f} hours (FRESH)\n"
+            message += f"• Bet Size: <b>${bet_size:,.2f}</b>\n"
+            message += f"• Total Trades: {total_trades} (single-market focus)\n"
+            message += f"• Allocation: {allocation:.1f}% to this market\n"
+            message += f"• Current Probability: {current_prob:.1%}\n"
+            message += f"• Expected Value: ${ev:.2f}\n"
+            message += f"• Suggested Size: ${suggested_size:.2f}\n\n"
+            message += f"<b>Why This Matters:</b>\n"
+            message += f"This pattern (new wallet + large bet + single-market focus) often indicates insider information or early signals.\n\n"
+            message += f"<b>Rationale:</b>\n{rationale}\n\n"
+            message += f"<a href='https://polymarket.com/event/{market_id}'>View on Polymarket</a>\n"
+            message += f"<a href='https://polygonscan.com/address/{wallet}'>View Wallet on PolygonScan</a>"
+        else:
+            message = f"🚨 <b>Flagged Opportunity</b>\n\n"
+            message += f"<b>Market:</b> {market_question}\n"
+            message += f"<b>Signal:</b> {signal_type.replace('_', ' ').title()}\n"
+            message += f"<b>Current Probability:</b> {current_prob:.1%}\n"
+            message += f"<b>Expected Value:</b> ${ev:.2f}\n"
+            message += f"<b>Suggested Size:</b> ${suggested_size:.2f}\n\n"
+            message += f"<b>Rationale:</b>\n{rationale}\n\n"
+            message += f"<a href='https://polymarket.com/event/{market_id}'>View on Polymarket</a>"
         
         return message
     
